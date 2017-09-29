@@ -209,11 +209,17 @@ cmTarget::cmTarget(std::string const& name, cmStateEnums::TargetType type,
   if (this->GetType() != cmStateEnums::INTERFACE_LIBRARY &&
       this->GetType() != cmStateEnums::UTILITY) {
 
+    //-------------------------------------------------------------------------------------------------------
+    this->SetPropertyDefault("ORBIS_ENABLE_RTTI", nullptr);
+    this->SetPropertyDefault("ORBIS_ENABLE_EXCEPTION", nullptr);
+    this->SetPropertyDefault("ORBIS_GENERATE_DEBUG_INFO", nullptr);
+    this->SetPropertyDefault("ORBIS_OPTIMIZATIONL_LEVEL", nullptr);
     this->SetPropertyDefault("ANDROID_ENABLE_RTTI", nullptr);
     this->SetPropertyDefault("ANDROID_ENABLE_EXCEPTION", nullptr);
     this->SetPropertyDefault("ANDROID_ENABLE_THUMB", nullptr);
     this->SetPropertyDefault("ANDROID_FLOAT_ABI", nullptr);
-    
+    //-------------------------------------------------------------------------------------------------------
+
     this->SetPropertyDefault("ANDROID_API", nullptr);
     this->SetPropertyDefault("ANDROID_API_MIN", nullptr);
     this->SetPropertyDefault("ANDROID_ARCH", nullptr);

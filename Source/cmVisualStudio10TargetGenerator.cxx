@@ -2470,6 +2470,7 @@ void cmVisualStudio10TargetGenerator::WriteClOptions(
                              << "</ProcessMax>\n";
     }
 
+    //-------------------------------------------------------------------------------------------------------
     if (const char* enableRTTI =
         this->GeneratorTarget->GetProperty("ANDROID_ENABLE_RTTI")) {
         this->WriteString("<RuntimeTypeInfo>", 3);
@@ -2498,6 +2499,49 @@ void cmVisualStudio10TargetGenerator::WriteClOptions(
                                << "</FloatAbi>\n";
     }
   }
+
+  //-------------------------------------------------------------------------------------------------------
+  if(strnicmp(this->Platform.c_str(), "ORBIS", 5) == 0) {
+
+      if (const char* enableRTTI =
+          this->GeneratorTarget->GetProperty("ORBIS_ENABLE_RTTI")) {
+          this->WriteString("<RuntimeTypeInfo>", 3);
+          (*this->BuildFileStream) << std::string(cmSystemTools::IsOff(enableRTTI) ? "false" : "true")
+              << "</RuntimeTypeInfo>\n";
+      }
+
+      if (const char* enableException =
+          this->GeneratorTarget->GetProperty("ORBIS_ENABLE_EXCEPTION")) {
+          this->WriteString("<CppExceptions>", 3);
+          (*this->BuildFileStream) << std::string(cmSystemTools::IsOff(enableException) ? "false" : "true")
+              << "</CppExceptions>\n";
+      }
+
+      if (const char* genDebugInfo =
+          this->GeneratorTarget->GetProperty("ORBIS_GENERATE_DEBUG_INFO")) {
+
+          if(strnicmp(configName.c_str(), "Debug", 5) == 0 ||
+             strnicmp(configName.c_str(), "Profile", 7) == 0 )
+          {
+              this->WriteString("<GenerateDebugInformation>", 3);
+              (*this->BuildFileStream) << std::string(cmSystemTools::IsOff(genDebugInfo) ? "false" : "true")
+                  << "</GenerateDebugInformation>\n";
+          }
+      }
+
+      if (const char* optimizationLevel =
+          this->GeneratorTarget->GetProperty("ORBIS_OPTIMIZATIONL_LEVEL")) {
+
+          if(strnicmp(configName.c_str(), "Release", 7) == 0 ||
+             strnicmp(configName.c_str(), "Profile", 7) == 0)
+          {
+              this->WriteString("<OptimizationLevel>", 3);
+              *this->BuildFileStream << cmVS10EscapeXML(optimizationLevel)
+                  << "</OptimizationLevel>\n";
+          }
+      }
+  }
+  //-------------------------------------------------------------------------------------------------------
 
   if (this->MSTools) {
     cmsys::RegularExpression clangToolset("v[0-9]+_clang_.*");
