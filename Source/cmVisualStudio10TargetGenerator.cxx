@@ -454,6 +454,24 @@ void cmVisualStudio10TargetGenerator::Generate()
 
   this->WriteString("</PropertyGroup>\n", 1);
 
+  //-------------------------------------------------------------------------------------------------------
+  this->WriteString("<PropertyGroup>\n", 1);
+  for (std::vector<std::string>::const_iterator keyIt = keys.begin();
+      keyIt != keys.end(); ++keyIt) {
+      static const char* prefix = "VS_CONFIG_PROPERTY_GROUP_";
+      if (keyIt->find(prefix) != 0)
+          continue;
+      std::string globalKey = keyIt->substr(strlen(prefix));
+      const char* value = this->GeneratorTarget->GetProperty(*keyIt);
+      if (!value)
+          continue;
+      this->WriteString("<", 2);
+      (*this->BuildFileStream) << globalKey << ">" << cmVS10EscapeXML(value)
+          << "</" << globalKey << ">\n";
+  }
+  this->WriteString("</PropertyGroup>\n", 1);
+  //-------------------------------------------------------------------------------------------------------
+
   switch (this->ProjectType) {
     case vcxproj:
       this->WriteString("<Import Project=\"" VS10_CXX_DEFAULT_PROPS "\" />\n",
