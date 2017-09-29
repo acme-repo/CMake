@@ -14,6 +14,8 @@ class cmRootWatcher;
 
 class cmFileMonitor
 {
+  CM_DISABLE_COPY(cmFileMonitor)
+
 public:
   cmFileMonitor(uv_loop_t* l);
   ~cmFileMonitor();

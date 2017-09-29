@@ -125,7 +125,7 @@ cmStateSnapshot cmStateSnapshot::GetCallStackBottom() const
   return cmStateSnapshot(this->State, pos);
 }
 
-void cmStateSnapshot::PushPolicy(cmPolicies::PolicyMap entry, bool weak)
+void cmStateSnapshot::PushPolicy(cmPolicies::PolicyMap const& entry, bool weak)
 {
   cmStateDetail::PositionType pos = this->Position;
   pos->Policies = this->State->PolicyStack.Push(
@@ -220,7 +220,7 @@ void cmStateSnapshot::SetDefinition(std::string const& name,
 
 void cmStateSnapshot::RemoveDefinition(std::string const& name)
 {
-  this->Position->Vars->Set(name, CM_NULLPTR);
+  this->Position->Vars->Set(name, nullptr);
 }
 
 std::vector<std::string> cmStateSnapshot::UnusedKeys() const

@@ -14,6 +14,8 @@ class cmCursesMainForm;
 
 class cmCursesWidget
 {
+  CM_DISABLE_COPY(cmCursesWidget)
+
 public:
   cmCursesWidget(int width, int height, int left, int top);
   virtual ~cmCursesWidget();
@@ -59,9 +61,6 @@ public:
   friend class cmCursesMainForm;
 
 protected:
-  cmCursesWidget(const cmCursesWidget& from);
-  void operator=(const cmCursesWidget&);
-
   cmStateEnums::CacheEntryType Type;
   std::string Value;
   FIELD* Field;

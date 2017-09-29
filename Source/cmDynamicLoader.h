@@ -14,6 +14,8 @@
 
 class cmDynamicLoader
 {
+  CM_DISABLE_COPY(cmDynamicLoader)
+
 public:
   // Description:
   // Load a dynamic library into the current process.
@@ -28,10 +30,6 @@ public:
 protected:
   cmDynamicLoader() {}
   ~cmDynamicLoader() {}
-
-private:
-  cmDynamicLoader(const cmDynamicLoader&); // Not implemented.
-  void operator=(const cmDynamicLoader&);  // Not implemented.
 };
 
 #endif

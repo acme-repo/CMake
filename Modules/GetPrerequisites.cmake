@@ -609,7 +609,7 @@ function(gp_resolved_file_type original_file file exepath dirs type_var)
 
   if(NOT is_embedded)
     if(NOT IS_ABSOLUTE "${resolved_file}")
-      if(lower MATCHES "^msvc[^/]+dll" AND is_system)
+      if(lower MATCHES "^(msvc|api-ms-win-)[^/]+dll" AND is_system)
         message(STATUS "info: non-absolute msvc file '${file}' returning type '${type}'")
       else()
         message(STATUS "warning: gp_resolved_file_type non-absolute file '${file}' returning type '${type}' -- possibly incorrect")
@@ -659,7 +659,6 @@ function(get_prerequisites target prerequisites_var exclude_system recurse exepa
 
   if(NOT EXISTS "${target}")
     message("warning: target '${target}' does not exist...")
-    set(${prerequisites_var} "" PARENT_SCOPE)
     return()
   endif()
 
@@ -943,7 +942,11 @@ function(get_prerequisites target prerequisites_var exclude_system recurse exepa
         #
         if(NOT list_length_before_append EQUAL list_length_after_append)
           gp_resolve_item("${target}" "${item}" "${exepath}" "${dirs}" resolved_item "${rpaths}")
-          set(unseen_prereqs ${unseen_prereqs} "${resolved_item}")
+          if(EXISTS "${resolved_item}")
+            # Recurse only if we could resolve the item.
+            # Otherwise the prerequisites_var list will be cleared
+            set(unseen_prereqs ${unseen_prereqs} "${resolved_item}")
+          endif()
         endif()
       endif()
     endif()

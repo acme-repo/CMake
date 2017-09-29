@@ -16,8 +16,8 @@ The general signature is:
              [PATH_SUFFIXES suffix1 [suffix2 ...]]
              [DOC "cache documentation string"]
              [NO_DEFAULT_PATH]
-             [NO_CMAKE_ENVIRONMENT_PATH]
              [NO_CMAKE_PATH]
+             [NO_CMAKE_ENVIRONMENT_PATH]
              [NO_SYSTEM_ENVIRONMENT_PATH]
              [NO_CMAKE_SYSTEM_PATH]
              [CMAKE_FIND_ROOT_PATH_BOTH |

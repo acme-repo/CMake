@@ -3,7 +3,7 @@
 #ifndef cmCommand_h
 #define cmCommand_h
 
-#include "cmConfigure.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
 #include <string>
 #include <vector>
@@ -24,12 +24,14 @@ struct cmListFileArgument;
  */
 class cmCommand
 {
+  CM_DISABLE_COPY(cmCommand)
+
 public:
   /**
    * Construct the command. By default it has no makefile.
    */
   cmCommand()
-    : Makefile(CM_NULLPTR)
+    : Makefile(nullptr)
   {
   }
 
@@ -78,22 +80,6 @@ public:
   virtual cmCommand* Clone() = 0;
 
   /**
-   * This determines if the command is invoked when in script mode.
-   */
-  virtual bool IsScriptable() const { return false; }
-
-  /**
-   * This determines if the command is defined in a cmake script.
-   * It is the case for cmMacroHelperCommand and cmFunctionHelperCommand.
-   */
-  virtual bool IsUserDefined() const { return false; }
-
-  /**
-   * The name of the command as specified in CMakeList.txt.
-   */
-  virtual std::string GetName() const = 0;
-
-  /**
    * Return the last error string.
    */
   const char* GetError();
@@ -102,10 +88,6 @@ public:
    * Set the error message
    */
   void SetError(const std::string& e);
-
-private:
-  cmCommand(cmCommand const&);            // = delete;
-  cmCommand& operator=(cmCommand const&); // = delete;
 
 protected:
   cmMakefile* Makefile;

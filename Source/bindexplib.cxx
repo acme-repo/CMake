@@ -218,7 +218,7 @@ public:
           *    The name of the Function entry points
           */
           if (pSymbolTable->N.Name.Short != 0) {
-            symbol = "";
+            symbol.clear();
             symbol.insert(0, (const char*)pSymbolTable->N.ShortName, 8);
           } else {
             symbol = stringTable + pSymbolTable->N.Name.Long;
@@ -235,35 +235,34 @@ public:
               symbol.erase(posAt);
             }
           }
-          // For i386 builds we don't need to remove _
+          // For i386 builds we need to remove _
           if (this->IsI386 && symbol[0] == '_') {
             symbol.erase(0, 1);
           }
 
-          /*
-          Check whether it is "Scalar deleting destructor" and
-          "Vector deleting destructor"
-          */
-          const char* scalarPrefix = "??_G";
-          const char* vectorPrefix = "??_E";
-          // original code had a check for
-          // symbol.find("real@") == std::string::npos)
-          // but if this disallows memmber functions with the name real
+          // Check whether it is "Scalar deleting destructor" and "Vector
+          // deleting destructor"
           // if scalarPrefix and vectorPrefix are not found then print
           // the symbol
+          const char* scalarPrefix = "??_G";
+          const char* vectorPrefix = "??_E";
+          // The original code had a check for
+          //     symbol.find("real@") == std::string::npos)
+          // but this disallows member functions with the name "real".
           if (symbol.compare(0, 4, scalarPrefix) &&
               symbol.compare(0, 4, vectorPrefix)) {
             SectChar = this->SectionHeaders[pSymbolTable->SectionNumber - 1]
                          .Characteristics;
-            if (!pSymbolTable->Type && (SectChar & IMAGE_SCN_MEM_WRITE)) {
-              // Read only (i.e. constants) must be excluded
-              this->DataSymbols.insert(symbol);
-            } else {
-              if (pSymbolTable->Type || !(SectChar & IMAGE_SCN_MEM_READ) ||
-                  (SectChar & IMAGE_SCN_MEM_EXECUTE)) {
-                this->Symbols.insert(symbol);
+            // skip symbols containing a dot
+            if (symbol.find('.') == std::string::npos) {
+              if (!pSymbolTable->Type && (SectChar & IMAGE_SCN_MEM_WRITE)) {
+                // Read only (i.e. constants) must be excluded
+                this->DataSymbols.insert(symbol);
               } else {
-                // printf(" strange symbol: %s \n",symbol.c_str());
+                if (pSymbolTable->Type || !(SectChar & IMAGE_SCN_MEM_READ) ||
+                    (SectChar & IMAGE_SCN_MEM_EXECUTE)) {
+                  this->Symbols.insert(symbol);
+                }
               }
             }
           }
@@ -395,12 +394,10 @@ bool bindexplib::AddDefinitionFile(const char* filename)
 void bindexplib::WriteFile(FILE* file)
 {
   fprintf(file, "EXPORTS \n");
-  for (std::set<std::string>::const_iterator i = this->DataSymbols.begin();
-       i != this->DataSymbols.end(); ++i) {
-    fprintf(file, "\t%s \t DATA\n", i->c_str());
+  for (std::string const& ds : this->DataSymbols) {
+    fprintf(file, "\t%s \t DATA\n", ds.c_str());
   }
-  for (std::set<std::string>::const_iterator i = this->Symbols.begin();
-       i != this->Symbols.end(); ++i) {
-    fprintf(file, "\t%s\n", i->c_str());
+  for (std::string const& s : this->Symbols) {
+    fprintf(file, "\t%s\n", s.c_str());
   }
 }

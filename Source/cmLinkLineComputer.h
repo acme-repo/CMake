@@ -16,9 +16,11 @@ class cmOutputConverter;
 
 class cmLinkLineComputer
 {
+  CM_DISABLE_COPY(cmLinkLineComputer)
+
 public:
   cmLinkLineComputer(cmOutputConverter* outputConverter,
-                     cmStateDirectory stateDir);
+                     cmStateDirectory const& stateDir);
   virtual ~cmLinkLineComputer();
 
   void SetUseWatcomQuote(bool useWatcomQuote);
@@ -41,9 +43,6 @@ public:
                                         std::string const& config);
 
 protected:
-  cmLinkLineComputer(cmLinkLineComputer const&);
-  cmLinkLineComputer& operator=(cmLinkLineComputer const&);
-
   std::string ComputeLinkLibs(cmComputeLinkInformation& cli);
   std::string ComputeRPath(cmComputeLinkInformation& cli);
 

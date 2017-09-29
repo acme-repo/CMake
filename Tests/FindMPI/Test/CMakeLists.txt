@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(TestFindMPI)
+project(TestFindMPI NONE)
 include(CTest)
 
 macro(source_code_mapper_helper LANG_NAME)
@@ -20,11 +20,16 @@ foreach(c C CXX Fortran)
   endif()
 endforeach()
 
+set(MPI_CXX_SKIP_MPICXX TRUE)
+set(MPI_CXX_VALIDATE_SKIP_MPICXX TRUE)
 find_package(MPI REQUIRED)
 
 foreach(c C CXX Fortran)
   if(NOT "${MPI_TEST_${c}}")
     continue()
+  endif()
+  if(${c} STREQUAL CXX AND MPI_MPICXX_FOUND)
+    message(FATAL_ERROR "Could not suppress MPI-2 C++ bindings for this MPI.")
   endif()
   source_code_mapper_helper(${c})
   add_executable(test_tgt_${c} ${MPITEST_SOURCE_FILE})

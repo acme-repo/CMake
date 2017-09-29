@@ -1,6 +1,9 @@
 # a macro for tests that have a simple format where the name matches the
 # directory and project
-macro(ADD_TEST_MACRO NAME COMMAND)
+macro(ADD_TEST_MACRO NAME)
+  if(${ARGC} GREATER 1)
+    set(_test_command --test-command ${ARGN})
+  endif()
   string(REPLACE "." "/" dir "${NAME}")
   string(REGEX REPLACE "[^.]*\\." "" proj "${NAME}")
   add_test(NAME "${NAME}" COMMAND "${CMAKE_CTEST_COMMAND}"
@@ -13,7 +16,8 @@ macro(ADD_TEST_MACRO NAME COMMAND)
     ${${NAME}_CTEST_OPTIONS}
     --build-options ${build_options}
     ${${NAME}_BUILD_OPTIONS}
-    --test-command ${COMMAND} ${ARGN})
+    ${_test_command})
+  unset(_test_command)
   list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/${dir}")
 endmacro()
 
@@ -142,6 +146,10 @@ if(BUILD_TESTING)
 
   if(NOT CMake_TEST_EXTERNAL_CMAKE)
     add_subdirectory(CMakeLib)
+
+    if(CMake_TEST_SERVER_MODE)
+      add_subdirectory(CMakeServerLib)
+    endif()
   endif()
   add_subdirectory(CMakeOnly)
   add_subdirectory(RunCMake)
@@ -260,7 +268,7 @@ if(BUILD_TESTING)
   endif()
 
   add_test(NAME CMake.Copyright
-    COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/CMakeCopyright.cmake)
+    COMMAND ${CMAKE_CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/CMakeCopyright.cmake)
 
   # add a bunch of standard build-and-test style tests
   ADD_TEST_MACRO(CommandLineTest CommandLineTest)
@@ -271,7 +279,7 @@ if(BUILD_TESTING)
   ADD_TEST_MACRO(SystemInformation SystemInformation)
   ADD_TEST_MACRO(MathTest MathTest)
   ADD_TEST_MACRO(CompileFeatures CompileFeatures)
-  ADD_TEST_MACRO(CMakeCommands.target_compile_features target_compile_features)
+  ADD_TEST_MACRO(CMakeCommands.target_compile_features)
 
   if(CMake_TEST_RESOURCES)
     ADD_TEST_MACRO(VSResource VSResource)
@@ -321,12 +329,13 @@ if(BUILD_TESTING)
       set(CMAKE_SKIP_VSGNUFortran TRUE)
     endif()
     if(NOT CMAKE_SKIP_VSGNUFortran)
-      ADD_TEST_MACRO(VSGNUFortran ${CMAKE_COMMAND} -P runtest.cmake)
+      ADD_TEST_MACRO(VSGNUFortran ${CMAKE_CMAKE_COMMAND} -P runtest.cmake)
     endif()
   endif()
 
   if(${CMAKE_GENERATOR} MATCHES "Visual Studio ([^89]|[89][0-9])")
     ADD_TEST_MACRO(CSharpOnly CSharpOnly)
+    ADD_TEST_MACRO(CSharpLinkToCxx CSharpLinkToCxx)
   endif()
 
   ADD_TEST_MACRO(COnly COnly)
@@ -804,31 +813,6 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     )
   list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/CustomCommandWorkingDirectory")
 
-   #add_test(SimpleExclude ${CMAKE_CTEST_COMMAND}
-   #  --build-and-test
-   #  "${CMake_SOURCE_DIR}/Tests/SimpleExclude"
-   #  "${CMake_BINARY_DIR}/Tests/SimpleExclude"
-   #  ${build_generator_args}
-   #  --build-project SimpleExclude
-   #  --build-two-config
-   #  --build-options ${build_options}
-   #  --test-command t4
-   #--test-command "${CMAKE_COMMAND}"
-   #"-DCONFIGURATION=\${CTEST_CONFIGURATION_TYPE}"
-   #-P "${CMake_BINARY_DIR}/Tests/SimpleExclude/run.cmake"
-   #)
-
-#  add_test(SameName  ${CMAKE_CTEST_COMMAND}
-#    --build-and-test
-#    "${CMake_SOURCE_DIR}/Tests/SameName"
-#    "${CMake_BINARY_DIR}/Tests/SameName"
-#    ${build_generator_args}
-#    --build-project SameName
-#    --build-two-config
-#    --build-options ${build_options}
-#    --test-command
-#    "${CMake_BINARY_DIR}/Tests/SameName/Exe1/mytest2")
-
   add_test(OutOfSource ${CMAKE_CTEST_COMMAND}
     --build-and-test
     "${CMake_SOURCE_DIR}/Tests/OutOfSource"
@@ -1280,11 +1264,27 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt5Autogen"
       --force-new-ctest-process
       --build-options ${build_options}
-        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE} -DQT_TEST_VERSION=5
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=5
         ${QtAutogen_BUILD_OPTIONS}
       --test-command ${run_autogen_test}
       )
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt5Autogen")
+
+    add_test(NAME Qt5AutogenRerun COMMAND ${CMAKE_CTEST_COMMAND}
+      --build-and-test
+      "${CMake_SOURCE_DIR}/Tests/QtAutogenRerun"
+      "${CMake_BINARY_DIR}/Tests/Qt5AutogenRerun"
+      ${build_generator_args}
+      --build-project QtAutogenRerun
+      --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt5AutogenRerun"
+      --force-new-ctest-process
+      --build-options ${build_options}
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=5
+        ${QtAutogen_BUILD_OPTIONS}
+      )
+    list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt5AutogenRerun")
 
     add_test(Qt5AutoUicInterface ${CMAKE_CTEST_COMMAND}
       --build-and-test
@@ -1310,11 +1310,27 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt4Autogen"
       --force-new-ctest-process
       --build-options ${build_options}
-        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE} -DQT_TEST_VERSION=4
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=4
         ${QtAutogen_BUILD_OPTIONS}
       --test-command ${run_autogen_test}
       )
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt4Autogen")
+
+    add_test(NAME Qt4AutogenRerun COMMAND ${CMAKE_CTEST_COMMAND}
+      --build-and-test
+      "${CMake_SOURCE_DIR}/Tests/QtAutogenRerun"
+      "${CMake_BINARY_DIR}/Tests/Qt4AutogenRerun"
+      ${build_generator_args}
+      --build-project QtAutogenRerun
+      --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt4AutogenRerun"
+      --force-new-ctest-process
+      --build-options ${build_options}
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=4
+        ${QtAutogen_BUILD_OPTIONS}
+      )
+    list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt4AutogenRerun")
 
     add_test(Qt4AutoUicInterface ${CMAKE_CTEST_COMMAND}
       --build-and-test
@@ -1325,7 +1341,8 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt4AutoUicInterface"
       --force-new-ctest-process
       --build-options ${build_options}
-        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE} -DQT_TEST_VERSION=4
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=4
       --test-command ${run_autouic_test}
       )
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt4AutoUicInterface")
@@ -1385,12 +1402,25 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     add_subdirectory(FindBZip2)
   endif()
 
+  if(CMake_TEST_FindDoxygen)
+    add_subdirectory(FindDoxygen)
+  endif()
+
+  if(CMake_TEST_FindEXPAT)
+    add_subdirectory(FindEXPAT)
+  endif()
+
+  if(CMake_TEST_FindFreetype)
+    add_subdirectory(FindFreetype)
+  endif()
+
   if(CMake_TEST_FindGSL)
     add_subdirectory(FindGSL)
   endif()
 
   if(CMake_TEST_FindGTest)
     add_subdirectory(FindGTest)
+    add_subdirectory(GoogleTest)
   endif()
 
   if(CMake_TEST_FindICU)
@@ -1421,6 +1451,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     add_subdirectory(FindOpenGL)
   endif()
 
+  if(CMake_TEST_FindOpenMP)
+    add_subdirectory(FindOpenMP)
+  endif()
+
   if(CMake_TEST_FindOpenSSL)
     add_subdirectory(FindOpenSSL)
   endif()
@@ -1431,6 +1465,14 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
   if(CMake_TEST_FindPNG)
     add_subdirectory(FindPNG)
+  endif()
+
+  if(CMake_TEST_FindPatch)
+    add_subdirectory(FindPatch)
+  endif()
+
+  if(CMake_TEST_FindProtobuf)
+    add_subdirectory(FindProtobuf)
   endif()
 
   if(CMake_TEST_FindTIFF)
@@ -1715,6 +1757,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
   if(CMake_TEST_XCODE_VERSION AND NOT CMake_TEST_XCODE_VERSION VERSION_LESS 5
      AND OSX_VERSION MATCHES "^([0-9]+\\.[0-9]+)")
+    set(XCTest_CTEST_OPTIONS --build-config $<CONFIGURATION>)
     set(XCTest_BUILD_OPTIONS -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_MATCH_1} -DCMAKE_OSX_SYSROOT=macosx)
     ADD_TEST_MACRO(XCTest ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> -V)
   endif()
@@ -2063,7 +2106,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     set(reg_nasm "[HKEY_CURRENT_USER\\SOFTWARE\\nasm]")
     foreach(reg vs10 vs11 vs12 vs14 ws80 ws81 ws10_0 wp80 wp81 wince tegra nasm)
       get_filename_component(r "${reg_${reg}}" ABSOLUTE)
-      if(IS_DIRECTORY "${r}")
+      if(IS_DIRECTORY "${r}" AND NOT "${r}" STREQUAL "/registry")
         set(${reg} 1)
       else()
         set(${reg} 0)
@@ -2598,7 +2641,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/MumpsCoverage/VistA-FOIA"
     DESTINATION "${CMake_BINARY_DIR}/Testing/MumpsCoverage")
   add_test(NAME CTestGTMCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/MumpsCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestGTMCoverage PROPERTIES
@@ -2616,7 +2659,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/MumpsCoverage/VistA-FOIA"
     DESTINATION "${CMake_BINARY_DIR}/Testing/MumpsCacheCoverage")
   add_test(NAME CTestCacheCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/MumpsCacheCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestCacheCoverage PROPERTIES
@@ -2634,7 +2677,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/PythonCoverage/coveragetest"
     DESTINATION "${CMake_BINARY_DIR}/Testing/PythonCoverage")
   add_test(NAME CTestPythonCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/PythonCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestPythonCoverage PROPERTIES
@@ -2652,7 +2695,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/CoberturaCoverage/src"
     DESTINATION "${CMake_BINARY_DIR}/Testing/CoberturaCoverage")
   add_test(NAME CTestCoberturaCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/CoberturaCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestCoberturaCoverage PROPERTIES
@@ -2671,7 +2714,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   configure_file("${CMake_BINARY_DIR}/Testing/JacocoCoverage/Coverage/target/site/jacoco.xml.in"
     "${CMake_BINARY_DIR}/Testing/JacocoCoverage/Coverage/target/site/jacoco.xml")
   add_test(NAME CTestJacocoCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/JacocoCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestJacocoCoverage PROPERTIES
@@ -2690,7 +2733,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     DESTINATION "${CMake_BINARY_DIR}/Testing/JavascriptCoverage"
     FILES_MATCHING PATTERN "*.js")
   add_test(NAME CTestJavascriptCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/JavascriptCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestJavascriptCoverage PROPERTIES
@@ -2708,7 +2751,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     "${CMake_SOURCE_DIR}/Tests/DelphiCoverage/UTCovTest(UTCovTest.pas).html.in"
     "${CMake_BINARY_DIR}/Testing/DelphiCoverage/UTCovTest(UTCovTest.pas).html")
   add_test(NAME CTestDelphiCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/DelphiCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestDelphiCoverage PROPERTIES
@@ -2766,13 +2809,11 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   ADD_TEST_MACRO(CMakeCommands.target_compile_definitions target_compile_definitions)
   ADD_TEST_MACRO(CMakeCommands.target_compile_options target_compile_options)
 
-  if(CMake_TEST_SERVER_MODE)
-    # The cmake server-mode test requires python for a simple client.
-    find_package(PythonInterp QUIET)
-    if(PYTHON_EXECUTABLE)
-      set(Server_BUILD_OPTIONS -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE})
-      ADD_TEST_MACRO(Server Server)
-    endif()
+  # The cmake server-mode test requires python for a simple client.
+  find_package(PythonInterp QUIET)
+  if(PYTHON_EXECUTABLE)
+    set(Server_BUILD_OPTIONS -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE})
+    ADD_TEST_MACRO(Server Server)
   endif()
 
   configure_file(
@@ -3096,6 +3137,9 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     endif ()
   endif ()
 
+  if(CMake_TEST_EXTERNAL_CMAKE)
+    set(CMAKE_SKIP_BOOTSTRAP_TEST 1)
+  endif()
   if("${CMAKE_GENERATOR}" MATCHES Xcode)
     set(CMAKE_SKIP_BOOTSTRAP_TEST 1)
   endif()

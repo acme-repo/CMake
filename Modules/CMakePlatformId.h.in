@@ -114,6 +114,9 @@
 # elif defined(_M_IX86)
 #  define ARCHITECTURE_ID "X86"
 
+# elif defined(_M_ARM64)
+#  define ARCHITECTURE_ID "ARM64"
+
 # elif defined(_M_ARM)
 #  if _M_ARM == 4
 #   define ARCHITECTURE_ID "ARMV4I"
@@ -144,6 +147,16 @@
 #  define ARCHITECTURE_ID ""
 # endif
 
+#elif defined(__IAR_SYSTEMS_ICC__) || defined(__IAR_SYSTEMS_ICC)
+# if defined(__ICCARM__)
+#  define ARCHITECTURE_ID "ARM"
+
+# elif defined(__ICCAVR__)
+#  define ARCHITECTURE_ID "AVR"
+
+# else /* unknown architecture */
+#  define ARCHITECTURE_ID ""
+# endif
 #else
 #  define ARCHITECTURE_ID
 #endif

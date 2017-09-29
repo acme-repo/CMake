@@ -12,6 +12,7 @@
 #include "cmsys/Encoding.hxx"
 
 #include <assert.h>
+#include <vector>
 #include <windows.h>
 
 static cmVS7FlagTable cmVS7ExtraFlagTable[] = {
@@ -333,7 +334,7 @@ void cmGlobalVisualStudio7Generator::OutputSLNFile(
 // output the SLN file
 void cmGlobalVisualStudio7Generator::OutputSLNFile()
 {
-  std::map<std::string, std::vector<cmLocalGenerator*> >::iterator it;
+  std::map<std::string, std::vector<cmLocalGenerator*>>::iterator it;
   for (it = this->ProjectMap.begin(); it != this->ProjectMap.end(); ++it) {
     this->OutputSLNFile(it->second[0], it->second);
   }
@@ -402,7 +403,7 @@ void cmGlobalVisualStudio7Generator::WriteTargetsToSolution(
         std::string dir = lg->GetCurrentBinaryDirectory();
         dir = root->ConvertToRelativePath(rootBinaryDir, dir.c_str());
         if (dir == ".") {
-          dir = ""; // msbuild cannot handle ".\" prefix
+          dir.clear(); // msbuild cannot handle ".\" prefix
         }
         this->WriteProject(fout, vcprojName, dir.c_str(), target);
         written = true;
@@ -417,7 +418,7 @@ void cmGlobalVisualStudio7Generator::WriteTargetsToSolution(
         std::vector<cmsys::String> tokens =
           cmSystemTools::SplitString(targetFolder, '/', false);
 
-        std::string cumulativePath = "";
+        std::string cumulativePath;
 
         for (std::vector<cmsys::String>::iterator iter = tokens.begin();
              iter != tokens.end(); ++iter) {
@@ -466,7 +467,7 @@ void cmGlobalVisualStudio7Generator::WriteFolders(std::ostream& fout)
   const char* prefix = "CMAKE_FOLDER_GUID_";
   const std::string::size_type skip_prefix = strlen(prefix);
   std::string guidProjectTypeFolder = "2150E333-8FDC-42A3-9474-1A3956D46DE8";
-  for (std::map<std::string, std::set<std::string> >::iterator iter =
+  for (std::map<std::string, std::set<std::string>>::iterator iter =
          VisualStudioFolders.begin();
        iter != VisualStudioFolders.end(); ++iter) {
     std::string fullName = iter->first;
@@ -486,7 +487,7 @@ void cmGlobalVisualStudio7Generator::WriteFolders(std::ostream& fout)
 
 void cmGlobalVisualStudio7Generator::WriteFoldersContent(std::ostream& fout)
 {
-  for (std::map<std::string, std::set<std::string> >::iterator iter =
+  for (std::map<std::string, std::set<std::string>>::iterator iter =
          VisualStudioFolders.begin();
        iter != VisualStudioFolders.end(); ++iter) {
     std::string key(iter->first);
@@ -519,6 +520,7 @@ std::string cmGlobalVisualStudio7Generator::ConvertToSolutionPath(
 void cmGlobalVisualStudio7Generator::WriteSLNGlobalSections(
   std::ostream& fout, cmLocalGenerator* root)
 {
+  std::string const guid = this->GetGUID(root->GetProjectName() + ".sln");
   bool extensibilityGlobalsOverridden = false;
   bool extensibilityAddInsOverridden = false;
   const std::vector<std::string> propKeys =
@@ -537,11 +539,14 @@ void cmGlobalVisualStudio7Generator::WriteSLNGlobalSections(
       } else
         continue;
       if (!name.empty()) {
-        if (name == "ExtensibilityGlobals" && sectionType == "postSolution")
+        bool addGuid = false;
+        if (name == "ExtensibilityGlobals" && sectionType == "postSolution") {
+          addGuid = true;
           extensibilityGlobalsOverridden = true;
-        else if (name == "ExtensibilityAddIns" &&
-                 sectionType == "postSolution")
+        } else if (name == "ExtensibilityAddIns" &&
+                   sectionType == "postSolution") {
           extensibilityAddInsOverridden = true;
+        }
         fout << "\tGlobalSection(" << name << ") = " << sectionType << "\n";
         std::vector<std::string> keyValuePairs;
         cmSystemTools::ExpandListArgument(
@@ -556,15 +561,23 @@ void cmGlobalVisualStudio7Generator::WriteSLNGlobalSections(
             const std::string value =
               cmSystemTools::TrimWhitespace(itPair->substr(posEqual + 1));
             fout << "\t\t" << key << " = " << value << "\n";
+            if (key == "SolutionGuid") {
+              addGuid = false;
+            }
           }
+        }
+        if (addGuid) {
+          fout << "\t\tSolutionGuid = {" << guid << "}\n";
         }
         fout << "\tEndGlobalSection\n";
       }
     }
   }
-  if (!extensibilityGlobalsOverridden)
+  if (!extensibilityGlobalsOverridden) {
     fout << "\tGlobalSection(ExtensibilityGlobals) = postSolution\n"
+         << "\t\tSolutionGuid = {" << guid << "}\n"
          << "\tEndGlobalSection\n";
+  }
   if (!extensibilityAddInsOverridden)
     fout << "\tGlobalSection(ExtensibilityAddIns) = postSolution\n"
          << "\tEndGlobalSection\n";
@@ -680,10 +693,10 @@ std::set<std::string> cmGlobalVisualStudio7Generator::IsPartOfDefaultBuild(
   // default build if another target depends on it
   int type = target->GetType();
   if (type == cmStateEnums::GLOBAL_TARGET) {
-    std::list<std::string> targetNames;
+    std::vector<std::string> targetNames;
     targetNames.push_back("INSTALL");
     targetNames.push_back("PACKAGE");
-    for (std::list<std::string>::const_iterator t = targetNames.begin();
+    for (std::vector<std::string>::const_iterator t = targetNames.begin();
          t != targetNames.end(); ++t) {
       // check if target <*t> is part of default build
       if (target->GetName() == *t) {
@@ -695,7 +708,7 @@ std::set<std::string> cmGlobalVisualStudio7Generator::IsPartOfDefaultBuild(
           const char* propertyValue =
             target->Target->GetMakefile()->GetDefinition(propertyName);
           cmGeneratorExpression ge;
-          CM_AUTO_PTR<cmCompiledGeneratorExpression> cge =
+          std::unique_ptr<cmCompiledGeneratorExpression> cge =
             ge.Parse(propertyValue);
           if (cmSystemTools::IsOn(
                 cge->Evaluate(target->GetLocalGenerator(), *i))) {

@@ -64,8 +64,8 @@ The complete Config mode command signature is::
                [PATHS path1 [path2 ... ]]
                [PATH_SUFFIXES suffix1 [suffix2 ...]]
                [NO_DEFAULT_PATH]
-               [NO_CMAKE_ENVIRONMENT_PATH]
                [NO_CMAKE_PATH]
+               [NO_CMAKE_ENVIRONMENT_PATH]
                [NO_SYSTEM_ENVIRONMENT_PATH]
                [NO_CMAKE_PACKAGE_REGISTRY]
                [NO_CMAKE_BUILDS_PATH] # Deprecated; does nothing.

@@ -3,7 +3,7 @@
 #ifndef cmVisualStudioTargetGenerator_h
 #define cmVisualStudioTargetGenerator_h
 
-#include "cmConfigure.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
 #include <iosfwd>
 #include <map>
@@ -66,6 +66,7 @@ private:
   void WriteAllSources();
   void WriteDotNetReferences();
   void WriteDotNetReference(std::string const& ref, std::string const& hint);
+  void WriteDotNetReferenceCustomTags(std::string const& ref);
   void WriteEmbeddedResourceGroup();
   void WriteWinRTReferences();
   void WriteWinRTPackageCertificateKeyFile();
@@ -101,6 +102,11 @@ private:
   bool ComputeCudaOptions(std::string const& config);
   void WriteCudaOptions(std::string const& config,
                         std::vector<std::string> const& includes);
+
+  bool ComputeCudaLinkOptions();
+  bool ComputeCudaLinkOptions(std::string const& config);
+  void WriteCudaLinkOptions(std::string const& config);
+
   bool ComputeMasmOptions();
   bool ComputeMasmOptions(std::string const& config);
   void WriteMasmOptions(std::string const& config,
@@ -121,6 +127,16 @@ private:
   void OutputLinkIncremental(std::string const& configName);
   void WriteCustomRule(cmSourceFile const* source,
                        cmCustomCommand const& command);
+  void WriteCustomRuleCpp(std::string const& config, std::string const& script,
+                          std::string const& inputs,
+                          std::string const& outputs,
+                          std::string const& comment);
+  void WriteCustomRuleCSharp(std::string const& config,
+                             std::string const& commandName,
+                             std::string const& script,
+                             std::string const& inputs,
+                             std::string const& outputs,
+                             std::string const& comment);
   void WriteCustomCommands();
   void WriteCustomCommand(cmSourceFile const* sf);
   void WriteGroups();
@@ -148,12 +164,19 @@ private:
 
   bool ForceOld(const std::string& source) const;
 
+  void GetCSharpSourceProperties(cmSourceFile const* sf,
+                                 std::map<std::string, std::string>& tags);
+  void WriteCSharpSourceProperties(
+    const std::map<std::string, std::string>& tags);
+  void GetCSharpSourceLink(cmSourceFile const* sf, std::string& link);
+
 private:
   typedef cmVisualStudioGeneratorOptions Options;
   typedef std::map<std::string, Options*> OptionsMap;
   OptionsMap ClOptions;
   OptionsMap RcOptions;
   OptionsMap CudaOptions;
+  OptionsMap CudaLinkOptions;
   OptionsMap MasmOptions;
   OptionsMap NasmOptions;
   OptionsMap LinkOptions;
@@ -181,6 +204,7 @@ private:
   cmGeneratedFileStream* BuildFileStream;
   cmLocalVisualStudio7Generator* LocalGenerator;
   std::set<cmSourceFile const*> SourcesVisited;
+  std::set<std::string> CSharpCustomCommandNames;
   bool IsMissingFiles;
   std::vector<std::string> AddedFiles;
   std::string DefaultArtifactDir;

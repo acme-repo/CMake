@@ -59,6 +59,10 @@ the syntax ``$<...>``.  See the :manual:`cmake-generator-expressions(7)`
 manual for available expressions.  See the :manual:`cmake-buildsystem(7)`
 manual for more on defining buildsystem properties.
 
+See also :prop_sf:`HEADER_FILE_ONLY` on what to do if some sources are
+pre-processed, and you want to have the original sources reachable from
+within IDE.
+
 Imported Libraries
 ^^^^^^^^^^^^^^^^^^
 
@@ -119,7 +123,7 @@ Alias Libraries
 
 Creates an :ref:`Alias Target <Alias Targets>`, such that ``<name>`` can be
 used to refer to ``<target>`` in subsequent commands.  The ``<name>`` does
-not appear in the generatedbuildsystem as a make target.  The ``<target>``
+not appear in the generated buildsystem as a make target.  The ``<target>``
 may not be an :ref:`Imported Target <Imported Targets>` or an ``ALIAS``.
 ``ALIAS`` targets can be used as linkable targets and as targets to
 read properties from.  They can also be tested for existence with the

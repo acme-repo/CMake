@@ -98,7 +98,7 @@ void uv__stream_init(uv_loop_t* loop,
       loop->emfile_fd = err;
   }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(CMAKE_BOOTSTRAP)
   stream->select = NULL;
 #endif /* defined(__APPLE_) */
 
@@ -107,7 +107,7 @@ void uv__stream_init(uv_loop_t* loop,
 
 
 static void uv__stream_osx_interrupt_select(uv_stream_t* stream) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(CMAKE_BOOTSTRAP)
   /* Notify select() thread about state change */
   uv__stream_select_t* s;
   int r;
@@ -131,7 +131,7 @@ static void uv__stream_osx_interrupt_select(uv_stream_t* stream) {
 }
 
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(CMAKE_BOOTSTRAP)
 static void uv__stream_osx_select(void* arg) {
   uv_stream_t* stream;
   uv__stream_select_t* s;
@@ -390,7 +390,7 @@ failed_malloc:
 
 
 int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
-#if defined(__APPLE__) || defined(__MVS__)
+#if defined(__APPLE__)
   int enable;
 #endif
 
@@ -409,7 +409,7 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
       return -errno;
   }
 
-#if defined(__APPLE__) || defined(__MVS__)
+#if defined(__APPLE__)
   enable = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &enable, sizeof(enable)) &&
       errno != ENOTSOCK &&
@@ -785,7 +785,12 @@ start:
     struct msghdr msg;
     struct cmsghdr *cmsg;
     int fd_to_send = uv__handle_fd((uv_handle_t*) req->send_handle);
-    char scratch[64] = {0};
+    union {
+      char data[64];
+      struct cmsghdr alias;
+    } scratch;
+
+    memset(&scratch, 0, sizeof(scratch));
 
     assert(fd_to_send >= 0);
 
@@ -795,7 +800,7 @@ start:
     msg.msg_iovlen = iovcnt;
     msg.msg_flags = 0;
 
-    msg.msg_control = (void*) scratch;
+    msg.msg_control = &scratch.alias;
     msg.msg_controllen = CMSG_SPACE(sizeof(fd_to_send));
 
     cmsg = CMSG_FIRSTHDR(&msg);
@@ -1168,6 +1173,11 @@ static void uv__read(uv_stream_t* stream) {
           uv__stream_osx_interrupt_select(stream);
         }
         stream->read_cb(stream, 0, &buf);
+#if defined(__CYGWIN__) || defined(__MSYS__)
+      } else if (errno == ECONNRESET && stream->type == UV_NAMED_PIPE) {
+        uv__stream_eof(stream, &buf);
+        return;
+#endif
       } else {
         /* Error. User should call uv_close(). */
         stream->read_cb(stream, -errno, &buf);
@@ -1400,6 +1410,12 @@ int uv_write2(uv_write_t* req,
      */
     if (uv__handle_fd((uv_handle_t*) send_handle) < 0)
       return -EBADF;
+
+#if defined(__CYGWIN__) || defined(__MSYS__)
+    /* Cygwin recvmsg always sets msg_controllen to zero, so we cannot send it.
+       See https://github.com/mirror/newlib-cygwin/blob/86fc4bf0/winsup/cygwin/fhandler_socket.cc#L1736-L1743 */
+    return -ENOSYS;
+#endif
   }
 
   /* It's legal for write_queue_size > 0 even when the write_queue is empty;
@@ -1582,7 +1598,7 @@ int uv_is_writable(const uv_stream_t* stream) {
 }
 
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(CMAKE_BOOTSTRAP)
 int uv___stream_fd(const uv_stream_t* handle) {
   const uv__stream_select_t* s;
 
@@ -1603,7 +1619,7 @@ void uv__stream_close(uv_stream_t* handle) {
   unsigned int i;
   uv__stream_queued_fds_t* queued_fds;
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(CMAKE_BOOTSTRAP)
   /* Terminate select loop first */
   if (handle->select != NULL) {
     uv__stream_select_t* s;

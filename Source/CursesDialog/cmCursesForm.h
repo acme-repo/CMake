@@ -11,6 +11,8 @@
 
 class cmCursesForm
 {
+  CM_DISABLE_COPY(cmCursesForm)
+
 public:
   cmCursesForm();
   virtual ~cmCursesForm();
@@ -54,9 +56,6 @@ public:
 protected:
   static cmsys::ofstream DebugFile;
   static bool Debug;
-
-  cmCursesForm(const cmCursesForm& form);
-  void operator=(const cmCursesForm&);
 
   FORM* Form;
 };

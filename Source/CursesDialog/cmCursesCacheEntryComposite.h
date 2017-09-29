@@ -13,6 +13,8 @@ class cmake;
 
 class cmCursesCacheEntryComposite
 {
+  CM_DISABLE_COPY(cmCursesCacheEntryComposite)
+
 public:
   cmCursesCacheEntryComposite(const std::string& key, int labelwidth,
                               int entrywidth);
@@ -24,9 +26,6 @@ public:
   friend class cmCursesMainForm;
 
 protected:
-  cmCursesCacheEntryComposite(const cmCursesCacheEntryComposite& from);
-  void operator=(const cmCursesCacheEntryComposite&);
-
   cmCursesLabelWidget* Label;
   cmCursesLabelWidget* IsNewLabel;
   cmCursesWidget* Entry;

@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2016, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -98,16 +98,21 @@ CURLcode Curl_proxy_connect(struct connectdata *conn, int sockindex)
      * original pointer
      *
      * This function might be called several times in the multi interface case
-     * if the proxy's CONNTECT response is not instant.
+     * if the proxy's CONNECT response is not instant.
      */
     prot_save = conn->data->req.protop;
     memset(&http_proxy, 0, sizeof(http_proxy));
     conn->data->req.protop = &http_proxy;
     connkeep(conn, "HTTP proxy CONNECT");
-    if(sockindex == SECONDARYSOCKET)
-      hostname = conn->secondaryhostname;
-    else if(conn->bits.conn_to_host)
+
+    /* for the secondary socket (FTP), use the "connect to host"
+     * but ignore the "connect to port" (use the secondary port)
+     */
+
+    if(conn->bits.conn_to_host)
       hostname = conn->conn_to_host.name;
+    else if(sockindex == SECONDARYSOCKET)
+      hostname = conn->secondaryhostname;
     else
       hostname = conn->host.name;
 
@@ -117,8 +122,7 @@ CURLcode Curl_proxy_connect(struct connectdata *conn, int sockindex)
       remote_port = conn->conn_to_port;
     else
       remote_port = conn->remote_port;
-    result = Curl_proxyCONNECT(conn, sockindex, hostname,
-                               remote_port, FALSE);
+    result = Curl_proxyCONNECT(conn, sockindex, hostname, remote_port);
     conn->data->req.protop = prot_save;
     if(CURLE_OK != result)
       return result;
@@ -131,20 +135,12 @@ CURLcode Curl_proxy_connect(struct connectdata *conn, int sockindex)
   return CURLE_OK;
 }
 
-/*
- * Curl_proxyCONNECT() requires that we're connected to a HTTP proxy. This
- * function will issue the necessary commands to get a seamless tunnel through
- * this proxy. After that, the socket can be used just as a normal socket.
- *
- * 'blocking' set to TRUE means that this function will do the entire CONNECT
- * + response in a blocking fashion. Should be avoided!
- */
+#define CONNECT_BUFFER_SIZE 16384
 
-CURLcode Curl_proxyCONNECT(struct connectdata *conn,
-                           int sockindex,
-                           const char *hostname,
-                           int remote_port,
-                           bool blocking)
+static CURLcode CONNECT(struct connectdata *conn,
+                        int sockindex,
+                        const char *hostname,
+                        int remote_port)
 {
   int subversion=0;
   struct Curl_easy *data=conn->data;
@@ -199,7 +195,7 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
       free(host_port);
 
       if(!result) {
-        char *host=(char *)"";
+        char *host = NULL;
         const char *proxyconn="";
         const char *useragent="";
         const char *http = (conn->http_proxy.proxytype == CURLPROXY_HTTP_1_0) ?
@@ -242,13 +238,13 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
                            "%s", /* Proxy-Connection */
                            hostheader,
                            http,
-                           host,
+                           host?host:"",
                            conn->allocptr.proxyuserpwd?
                            conn->allocptr.proxyuserpwd:"",
                            useragent,
                            proxyconn);
 
-        if(host && *host)
+        if(host)
           free(host);
         free(hostheader);
 
@@ -284,15 +280,10 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
       return CURLE_RECV_ERROR;
     }
 
-    if(!blocking) {
-      if(!Curl_conn_data_pending(conn, sockindex))
-        /* return so we'll be called again polling-style */
-        return CURLE_OK;
-      else {
-        DEBUGF(infof(data,
-               "Read response immediately from proxy CONNECT\n"));
-      }
-    }
+    if(!Curl_conn_data_pending(conn, sockindex))
+      /* return so we'll be called again polling-style */
+      return CURLE_OK;
+    DEBUGF(infof(data, "Read response immediately from proxy CONNECT\n"));
 
     /* at this point, the tunnel_connecting phase is over. */
 
@@ -304,19 +295,17 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
       char *ptr;
       char *line_start;
 
-      ptr = data->state.buffer;
+      ptr = conn->connect_buffer;
       line_start = ptr;
 
       nread = 0;
       perline = 0;
 
-      while(nread < BUFSIZE && keepon && !error) {
-        int writetype;
-
+      while(nread < (size_t)CONNECT_BUFFER_SIZE && keepon && !error) {
         if(Curl_pgrsUpdate(conn))
           return CURLE_ABORTED_BY_CALLBACK;
 
-        if(ptr >= &data->state.buffer[BUFSIZE]) {
+        if(ptr >= &conn->connect_buffer[CONNECT_BUFFER_SIZE]) {
           failf(data, "CONNECT response too large!");
           return CURLE_RECV_ERROR;
         }
@@ -339,7 +328,7 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
           }
           continue;
         }
-        else if(result) {
+        if(result) {
           keepon = FALSE;
           break;
         }
@@ -365,7 +354,7 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
           /* This means we are currently ignoring a response-body */
 
           nread = 0; /* make next read start over in the read buffer */
-          ptr = data->state.buffer;
+          ptr = conn->connect_buffer;
           if(cl) {
             /* A Content-Length based body: simply count down the counter
                and make sure to break out of the loop when we're done! */
@@ -414,18 +403,19 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
           Curl_debug(data, CURLINFO_HEADER_IN,
                      line_start, (size_t)perline, conn);
 
-        /* send the header to the callback */
-        writetype = CLIENTWRITE_HEADER;
-        if(data->set.include_header)
-          writetype |= CLIENTWRITE_BODY;
+        if(!data->set.suppress_connect_headers) {
+          /* send the header to the callback */
+          int writetype = CLIENTWRITE_HEADER;
+          if(data->set.include_header)
+            writetype |= CLIENTWRITE_BODY;
 
-        result = Curl_client_write(conn, writetype, line_start, perline);
+          result = Curl_client_write(conn, writetype, line_start, perline);
+          if(result)
+            return result;
+        }
 
         data->info.header_size += (long)perline;
         data->req.headerbytecount += (long)perline;
-
-        if(result)
-          return result;
 
         /* Newlines are CRLF, so the CR is ignored as the line isn't
            really terminated until the LF comes. Treat a following CR
@@ -436,7 +426,7 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
           /* end of response-headers from the proxy */
           nread = 0; /* make next read start over in the read
                         buffer */
-          ptr = data->state.buffer;
+          ptr = conn->connect_buffer;
           if((407 == k->httpcode) && !data->state.authproblem) {
             /* If we get a 407 response code with content length
                when we have no auth problem, we must ignore the
@@ -510,33 +500,34 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
         }
         else if(checkprefix("Content-Length:", line_start)) {
           if(k->httpcode/100 == 2) {
-            /* A server MUST NOT send any Transfer-Encoding or
-               Content-Length header fields in a 2xx (Successful)
-               response to CONNECT. (RFC 7231 section 4.3.6) */
-            failf(data, "Content-Length: in %03d response",
+            /* A client MUST ignore any Content-Length or Transfer-Encoding
+               header fields received in a successful response to CONNECT.
+               "Successful" described as: 2xx (Successful). RFC 7231 4.3.6 */
+            infof(data, "Ignoring Content-Length in CONNECT %03d response\n",
                   k->httpcode);
-            return CURLE_RECV_ERROR;
           }
-
-          cl = curlx_strtoofft(line_start +
-                               strlen("Content-Length:"), NULL, 10);
+          else {
+            cl = curlx_strtoofft(line_start +
+                                 strlen("Content-Length:"), NULL, 10);
+          }
         }
         else if(Curl_compareheader(line_start, "Connection:", "close"))
           closeConnection = TRUE;
-        else if(Curl_compareheader(line_start,
-                                   "Transfer-Encoding:",
-                                   "chunked")) {
+        else if(checkprefix("Transfer-Encoding:", line_start)) {
           if(k->httpcode/100 == 2) {
-            /* A server MUST NOT send any Transfer-Encoding or
-               Content-Length header fields in a 2xx (Successful)
-               response to CONNECT. (RFC 7231 section 4.3.6) */
-            failf(data, "Transfer-Encoding: in %03d response", k->httpcode);
-            return CURLE_RECV_ERROR;
+            /* A client MUST ignore any Content-Length or Transfer-Encoding
+               header fields received in a successful response to CONNECT.
+               "Successful" described as: 2xx (Successful). RFC 7231 4.3.6 */
+            infof(data, "Ignoring Transfer-Encoding in "
+                  "CONNECT %03d response\n", k->httpcode);
           }
-          infof(data, "CONNECT responded chunked\n");
-          chunked_encoding = TRUE;
-          /* init our chunky engine */
-          Curl_httpchunk_init(conn);
+          else if(Curl_compareheader(line_start,
+                                     "Transfer-Encoding:", "chunked")) {
+            infof(data, "CONNECT responded chunked\n");
+            chunked_encoding = TRUE;
+            /* init our chunky engine */
+            Curl_httpchunk_init(conn);
+          }
         }
         else if(Curl_compareheader(line_start, "Proxy-Connection:", "close"))
           closeConnection = TRUE;
@@ -548,7 +539,7 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
         }
 
         perline = 0; /* line starts over here */
-        ptr = data->state.buffer;
+        ptr = conn->connect_buffer;
         line_start = ptr;
       } /* while there's buffer left and loop is requested */
 
@@ -612,11 +603,9 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
     if(conn->bits.proxy_connect_closed)
       /* this is not an error, just part of the connection negotiation */
       return CURLE_OK;
-    else {
-      failf(data, "Received HTTP code %d from proxy after CONNECT",
-            data->req.httpcode);
-      return CURLE_RECV_ERROR;
-    }
+    failf(data, "Received HTTP code %d from proxy after CONNECT",
+          data->req.httpcode);
+    return CURLE_RECV_ERROR;
   }
 
   conn->tunnel_state[sockindex] = TUNNEL_COMPLETE;
@@ -635,4 +624,33 @@ CURLcode Curl_proxyCONNECT(struct connectdata *conn,
                                          document request  */
   return CURLE_OK;
 }
+
+/*
+ * Curl_proxyCONNECT() requires that we're connected to a HTTP proxy. This
+ * function will issue the necessary commands to get a seamless tunnel through
+ * this proxy. After that, the socket can be used just as a normal socket.
+ */
+
+CURLcode Curl_proxyCONNECT(struct connectdata *conn,
+                           int sockindex,
+                           const char *hostname,
+                           int remote_port)
+{
+  CURLcode result;
+  if(TUNNEL_INIT == conn->tunnel_state[sockindex]) {
+    if(!conn->connect_buffer) {
+      conn->connect_buffer = malloc(CONNECT_BUFFER_SIZE);
+      if(!conn->connect_buffer)
+        return CURLE_OUT_OF_MEMORY;
+    }
+  }
+  result = CONNECT(conn, sockindex, hostname, remote_port);
+
+  if(result || (TUNNEL_COMPLETE == conn->tunnel_state[sockindex]))
+    Curl_safefree(conn->connect_buffer);
+
+  return result;
+}
+
+
 #endif /* CURL_DISABLE_PROXY */

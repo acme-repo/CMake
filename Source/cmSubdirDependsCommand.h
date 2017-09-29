@@ -3,7 +3,7 @@
 #ifndef cmSubdirDependsCommand_h
 #define cmSubdirDependsCommand_h
 
-#include "cmConfigure.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
 #include <string>
 #include <vector>
@@ -15,10 +15,9 @@ class cmExecutionStatus;
 class cmSubdirDependsCommand : public cmCommand
 {
 public:
-  cmCommand* Clone() CM_OVERRIDE { return new cmSubdirDependsCommand; }
+  cmCommand* Clone() override { return new cmSubdirDependsCommand; }
   bool InitialPass(std::vector<std::string> const& args,
-                   cmExecutionStatus& status) CM_OVERRIDE;
-  std::string GetName() const CM_OVERRIDE { return "subdir_depends"; }
+                   cmExecutionStatus& status) override;
 };
 
 #endif

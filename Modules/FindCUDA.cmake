@@ -2,6 +2,20 @@
 # FindCUDA
 # --------
 #
+# .. note::
+#
+#   The FindCUDA module has been superseded by first-class support
+#   for the CUDA language in CMake.  It is no longer necessary to
+#   use this module or call ``find_package(CUDA)``.  This module
+#   now exists only for compatibility with projects that have not
+#   been ported.
+#
+#   Instead, list ``CUDA`` among the languages named in the top-level
+#   call to the :command:`project` command, or call the
+#   :command:`enable_language` command with ``CUDA``.
+#   Then one can add CUDA (``.cu``) sources to programs directly
+#   in calls to :command:`add_library` and :command:`add_executable`.
+#
 # Tools for building CUDA C files: libraries and build dependencies.
 #
 # This script locates the NVIDIA CUDA C tools.  It should work on linux,
@@ -589,7 +603,6 @@ macro(cuda_unset_include_and_libraries)
   unset(CUDA_npps_LIBRARY CACHE)
   unset(CUDA_nvcuvenc_LIBRARY CACHE)
   unset(CUDA_nvcuvid_LIBRARY CACHE)
-  unset(CUDA_USE_STATIC_CUDA_RUNTIME CACHE)
   unset(CUDA_GPU_DETECT_OUTPUT CACHE)
 endmacro()
 
@@ -679,7 +692,11 @@ if(CMAKE_CROSSCOMPILING)
   # add known CUDA targetr root path to the set of directories we search for programs, libraries and headers
   set( CMAKE_FIND_ROOT_PATH "${CUDA_TOOLKIT_TARGET_DIR};${CMAKE_FIND_ROOT_PATH}")
   macro( cuda_find_host_program )
-    find_host_program( ${ARGN} )
+    if (COMMAND find_host_program)
+      find_host_program( ${ARGN} )
+    else()
+      find_program( ${ARGN} )
+    endif()
   endmacro()
 else()
   # for non-cross-compile, find_host_program == find_program and CUDA_TOOLKIT_TARGET_DIR == CUDA_TOOLKIT_ROOT_DIR
@@ -798,12 +815,17 @@ endif()
 if(CUDA_cudart_static_LIBRARY)
   # If static cudart available, use it by default, but provide a user-visible option to disable it.
   option(CUDA_USE_STATIC_CUDA_RUNTIME "Use the static version of the CUDA runtime library if available" ON)
-  set(CUDA_CUDART_LIBRARY_VAR CUDA_cudart_static_LIBRARY)
 else()
   # If not available, silently disable the option.
   set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE INTERNAL "")
+endif()
+
+if(CUDA_USE_STATIC_CUDA_RUNTIME)
+  set(CUDA_CUDART_LIBRARY_VAR CUDA_cudart_static_LIBRARY)
+else()
   set(CUDA_CUDART_LIBRARY_VAR CUDA_CUDART_LIBRARY)
 endif()
+
 if(NOT CUDA_VERSION VERSION_LESS "5.0")
   cuda_find_library_local_first(CUDA_cudadevrt_LIBRARY cudadevrt "\"cudadevrt\" library")
   mark_as_advanced(CUDA_cudadevrt_LIBRARY)
@@ -1698,6 +1720,7 @@ function(CUDA_LINK_SEPARABLE_COMPILATION_OBJECTS output_file cuda_target options
         COMMAND ${CUDA_NVCC_EXECUTABLE} ${nvcc_flags} -dlink ${object_files} -o ${output_file}
         ${flags}
         COMMENT "Building NVCC intermediate link file ${output_file_relative_path}"
+        COMMAND_EXPAND_LISTS
         ${_verbatim}
         )
     else()
@@ -1708,6 +1731,7 @@ function(CUDA_LINK_SEPARABLE_COMPILATION_OBJECTS output_file cuda_target options
         COMMAND ${CMAKE_COMMAND} -E echo "Building NVCC intermediate link file ${output_file_relative_path}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${output_file_dir}"
         COMMAND ${CUDA_NVCC_EXECUTABLE} ${nvcc_flags} ${flags} -dlink ${object_files} -o "${output_file}"
+        COMMAND_EXPAND_LISTS
         ${_verbatim}
         )
     endif()
@@ -1825,7 +1849,7 @@ macro(cuda_compile_base cuda_target format generated_files)
   else()
     set(_counter 1)
   endif()
-  set(_cuda_target "${_cuda_target}_${_counter}")
+  string(APPEND _cuda_target "_${_counter}")
   set_property(DIRECTORY PROPERTY _cuda_internal_phony_counter ${_counter})
 
   # Separate the sources from the options

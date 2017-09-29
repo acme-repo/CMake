@@ -21,6 +21,8 @@ class cmFileLockResult;
   */
 class cmFileLock
 {
+  CM_DISABLE_COPY(cmFileLock)
+
 public:
   cmFileLock();
   ~cmFileLock();
@@ -44,9 +46,6 @@ public:
   bool IsLocked(const std::string& filename) const;
 
 private:
-  cmFileLock(const cmFileLock&);
-  cmFileLock& operator=(const cmFileLock&);
-
   cmFileLockResult OpenFile();
   cmFileLockResult LockWithoutTimeout();
   cmFileLockResult LockWithTimeout(unsigned long timeoutSec);

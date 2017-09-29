@@ -8,6 +8,8 @@ if(__COMPILER_GNU)
 endif()
 set(__COMPILER_GNU 1)
 
+include(Compiler/CMakeCommonCompilerMacros)
+
 macro(__compiler_gnu lang)
   # Feature flags.
   set(CMAKE_${lang}_VERBOSE_FLAG "-v")
@@ -46,14 +48,14 @@ macro(__compiler_gnu lang)
     set(CMAKE_INCLUDE_SYSTEM_FLAG_${lang} "-isystem ")
   endif()
 
-  set(_CMAKE_IPO_SUPPORTED_BY_CMAKE YES)
-  set(_CMAKE_IPO_MAY_BE_SUPPORTED_BY_COMPILER NO)
+  set(_CMAKE_${lang}_IPO_SUPPORTED_BY_CMAKE YES)
+  set(_CMAKE_${lang}_IPO_MAY_BE_SUPPORTED_BY_COMPILER NO)
 
   # '-flto' introduced since GCC 4.5:
   # * https://gcc.gnu.org/onlinedocs/gcc-4.4.7/gcc/Option-Summary.html (no)
   # * https://gcc.gnu.org/onlinedocs/gcc-4.5.4/gcc/Option-Summary.html (yes)
   if(NOT CMAKE_${lang}_COMPILER_VERSION VERSION_LESS 4.5)
-    set(_CMAKE_IPO_MAY_BE_SUPPORTED_BY_COMPILER YES)
+    set(_CMAKE_${lang}_IPO_MAY_BE_SUPPORTED_BY_COMPILER YES)
     set(__lto_flags -flto)
 
     if(NOT CMAKE_${lang}_COMPILER_VERSION VERSION_LESS 4.7)

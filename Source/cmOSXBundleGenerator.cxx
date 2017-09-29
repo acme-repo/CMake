@@ -2,8 +2,6 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmOSXBundleGenerator.h"
 
-#include "cmConfigure.h"
-
 #include "cmGeneratorTarget.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
@@ -21,7 +19,7 @@ cmOSXBundleGenerator::cmOSXBundleGenerator(cmGeneratorTarget* target,
   , Makefile(target->Target->GetMakefile())
   , LocalGenerator(target->GetLocalGenerator())
   , ConfigName(configName)
-  , MacContentFolders(CM_NULLPTR)
+  , MacContentFolders(nullptr)
 {
   if (this->MustSkip()) {
     return;
@@ -48,8 +46,6 @@ void cmOSXBundleGenerator::CreateAppBundle(const std::string& targetName,
   cmSystemTools::MakeDirectory(out.c_str());
   this->Makefile->AddCMakeOutputFile(out);
 
-  std::string newoutpath = out;
-
   // Configure the Info.plist file.  Note that it needs the executable name
   // to be set.
   std::string plist = outpath;
@@ -60,7 +56,7 @@ void cmOSXBundleGenerator::CreateAppBundle(const std::string& targetName,
   this->LocalGenerator->GenerateAppleInfoPList(this->GT, targetName,
                                                plist.c_str());
   this->Makefile->AddCMakeOutputFile(plist);
-  outpath = newoutpath;
+  outpath = out;
 }
 
 void cmOSXBundleGenerator::CreateFramework(const std::string& targetName,
@@ -199,12 +195,11 @@ void cmOSXBundleGenerator::GenerateMacOSXContentStatements(
     return;
   }
 
-  for (std::vector<cmSourceFile const*>::const_iterator si = sources.begin();
-       si != sources.end(); ++si) {
+  for (cmSourceFile const* source : sources) {
     cmGeneratorTarget::SourceFileFlags tsFlags =
-      this->GT->GetTargetSourceFileFlags(*si);
+      this->GT->GetTargetSourceFileFlags(source);
     if (tsFlags.Type != cmGeneratorTarget::SourceFileTypeNormal) {
-      (*generator)(**si, tsFlags.MacFolder);
+      (*generator)(*source, tsFlags.MacFolder);
     }
   }
 }

@@ -3,7 +3,7 @@
 #ifndef cmGeneratorTarget_h
 #define cmGeneratorTarget_h
 
-#include "cmConfigure.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
 #include "cmLinkItem.h"
 #include "cmListFileCache.h"
@@ -27,6 +27,8 @@ class cmTarget;
 
 class cmGeneratorTarget
 {
+  CM_DISABLE_COPY(cmGeneratorTarget)
+
 public:
   cmGeneratorTarget(cmTarget*, cmLocalGenerator* lg);
   ~cmGeneratorTarget();
@@ -105,6 +107,11 @@ public:
     std::set<std::string> ExpectedResxHeaders;
     std::set<std::string> ExpectedXamlHeaders;
     std::set<std::string> ExpectedXamlSources;
+    bool Initialized;
+    KindedSources()
+      : Initialized(false)
+    {
+    }
   };
 
   /** Get all sources needed for a configuration with kinds assigned.  */
@@ -163,7 +170,7 @@ public:
   const char* GetFeature(const std::string& feature,
                          const std::string& config) const;
 
-  bool IsIPOEnabled(const std::string& config) const;
+  bool IsIPOEnabled(std::string const& lang, std::string const& config) const;
 
   bool IsLinkInterfaceDependentBoolProperty(const std::string& p,
                                             const std::string& config) const;
@@ -383,7 +390,8 @@ public:
                      std::vector<std::string>& archVec) const;
 
   std::string GetFeatureSpecificLinkRuleVariable(
-    std::string const& var, std::string const& config) const;
+    std::string const& var, std::string const& lang,
+    std::string const& config) const;
 
   /** Return the rule variable used to create this type of target.  */
   std::string GetCreateRuleVariable(std::string const& lang,
@@ -409,6 +417,8 @@ public:
 
   /** Add the target output files to the global generator manifest.  */
   void ComputeTargetManifest(const std::string& config) const;
+
+  bool ComputeCompileFeatures(std::string const& config) const;
 
   /**
    * Trace through the source files in this target and add al source files
@@ -481,6 +491,11 @@ public:
   std::string GetOutputName(const std::string& config,
                             cmStateEnums::ArtifactType artifact) const;
 
+  /** Clears cached meta data for local and external source files.
+    * The meta data will be recomputed on demand.
+    */
+  void ClearSourcesCache();
+
   void AddSource(const std::string& src);
   void AddTracedSources(std::vector<std::string> const& srcs);
 
@@ -509,7 +524,7 @@ public:
   {
     SourceFileFlags()
       : Type(SourceFileTypeNormal)
-      , MacFolder(CM_NULLPTR)
+      , MacFolder(nullptr)
     {
     }
     SourceFileType Type;
@@ -555,7 +570,7 @@ public:
   /** Convert the given GNU import library name (.dll.a) to a name with a new
       extension (.lib or ${CMAKE_IMPORT_LIBRARY_SUFFIX}).  */
   bool GetImplibGNUtoMS(std::string const& gnuName, std::string& out,
-                        const char* newExt = CM_NULLPTR) const;
+                        const char* newExt = nullptr) const;
 
   bool IsExecutableWithExports() const;
 
@@ -646,7 +661,7 @@ private:
   SourceEntriesType SourceDepends;
   mutable std::map<cmSourceFile const*, std::string> Objects;
   std::set<cmSourceFile const*> ExplicitObjectName;
-  mutable std::map<std::string, std::vector<std::string> > SystemIncludesCache;
+  mutable std::map<std::string, std::vector<std::string>> SystemIncludesCache;
 
   mutable std::string ExportMacro;
 
@@ -700,9 +715,6 @@ private:
 
   void CheckPropertyCompatibility(cmComputeLinkInformation* info,
                                   const std::string& config) const;
-
-  cmGeneratorTarget(cmGeneratorTarget const&);
-  void operator=(cmGeneratorTarget const&);
 
   struct LinkImplClosure : public std::vector<cmGeneratorTarget const*>
   {

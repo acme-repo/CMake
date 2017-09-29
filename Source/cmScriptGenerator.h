@@ -47,6 +47,8 @@ inline std::ostream& operator<<(std::ostream& os,
  */
 class cmScriptGenerator
 {
+  CM_DISABLE_COPY(cmScriptGenerator)
+
 public:
   cmScriptGenerator(const std::string& config_var,
                     std::vector<std::string> const& configurations);
@@ -87,9 +89,6 @@ protected:
   bool ActionsPerConfig;
 
 private:
-  cmScriptGenerator(cmScriptGenerator const&);
-  cmScriptGenerator& operator=(cmScriptGenerator const&);
-
   void GenerateScriptActionsOnce(std::ostream& os, Indent indent);
   void GenerateScriptActionsPerConfig(std::ostream& os, Indent indent);
 };

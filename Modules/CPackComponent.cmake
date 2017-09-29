@@ -37,6 +37,16 @@
 #  components defined by the project.  The user may set it to only include the
 #  specified components.
 #
+#  Instead of specifying all the desired components, it is possible to obtain a
+#  list of all defined components and then remove the unwanted ones from the
+#  list. The :command:`get_cmake_property` command can be used to obtain the
+#  ``COMPONENTS`` property, then the :command:`list(REMOVE_ITEM)` command can be
+#  used to remove the unwanted ones. For example, to use all defined components
+#  except ``foo`` and ``bar``::
+#
+#    get_cmake_property(CPACK_COMPONENTS_ALL COMPONENTS)
+#    list(REMOVE_ITEM CPACK_COMPONENTS_ALL "foo" "bar")
+#
 # .. variable:: CPACK_<GENNAME>_COMPONENT_INSTALL
 #
 #  Enable/Disable component install for CPack generator <GENNAME>.
@@ -309,11 +319,11 @@ set(CPackComponent_CMake_INCLUDED 1)
 # configuration file.
 macro(cpack_append_variable_set_command var strvar)
   if (DEFINED ${var})
-    set(${strvar} "${${strvar}}set(${var}")
+    string(APPEND ${strvar} "set(${var}")
     foreach(APPENDVAL ${${var}})
-      set(${strvar} "${${strvar}} ${APPENDVAL}")
+      string(APPEND ${strvar} " ${APPENDVAL}")
     endforeach()
-    set(${strvar} "${${strvar}})\n")
+    string(APPEND ${strvar} ")\n")
   endif ()
 endmacro()
 
@@ -325,7 +335,7 @@ macro(cpack_append_string_variable_set_command var strvar)
   if (DEFINED ${var})
     list(LENGTH ${var} CPACK_APP_VALUE_LEN)
     if(${CPACK_APP_VALUE_LEN} EQUAL 1)
-      set(${strvar} "${${strvar}}set(${var} \"${${var}}\")\n")
+      string(APPEND ${strvar} "set(${var} \"${${var}}\")\n")
     endif()
   endif ()
 endmacro()
@@ -352,7 +362,7 @@ macro(cpack_append_option_set_command var strvar)
   if (${var})
     list(LENGTH ${var} CPACK_APP_VALUE_LEN)
     if(${CPACK_APP_VALUE_LEN} EQUAL 1)
-      set(${strvar} "${${strvar}}set(${var} TRUE)\n")
+      string(APPEND ${strvar} "set(${var} TRUE)\n")
     endif()
   endif ()
 endmacro()

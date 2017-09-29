@@ -14,6 +14,8 @@
 
 class cmXMLWriter
 {
+  CM_DISABLE_COPY(cmXMLWriter)
+
 public:
   cmXMLWriter(std::ostream& output, std::size_t level = 0);
   ~cmXMLWriter();
@@ -63,9 +65,6 @@ public:
   void SetIndentationElement(std::string const& element);
 
 private:
-  cmXMLWriter(const cmXMLWriter&);
-  cmXMLWriter& operator=(const cmXMLWriter&);
-
   void ConditionalLineBreak(bool condition, std::size_t indent);
 
   void PreAttribute();
@@ -108,7 +107,7 @@ private:
 
 private:
   std::ostream& Output;
-  std::stack<std::string, std::vector<std::string> > Elements;
+  std::stack<std::string, std::vector<std::string>> Elements;
   std::string IndentationElement;
   std::size_t Level;
   bool ElementOpen;
