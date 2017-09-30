@@ -218,6 +218,7 @@ cmTarget::cmTarget(std::string const& name, cmStateEnums::TargetType type,
     this->SetPropertyDefault("ANDROID_ENABLE_EXCEPTION", nullptr);
     this->SetPropertyDefault("ANDROID_ENABLE_THUMB", nullptr);
     this->SetPropertyDefault("ANDROID_FLOAT_ABI", nullptr);
+    this->SetPropertyDefault("ANDROID_OPTIMIZATIONL_LEVEL", nullptr);
     //-------------------------------------------------------------------------------------------------------
 
     this->SetPropertyDefault("ANDROID_API", nullptr);

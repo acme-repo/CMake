@@ -2516,6 +2516,18 @@ void cmVisualStudio10TargetGenerator::WriteClOptions(
         *this->BuildFileStream << cmVS10EscapeXML(floatAbi)
                                << "</FloatAbi>\n";
     }
+
+    if (const char* optimizationLevel =
+        this->GeneratorTarget->GetProperty("ANDROID_OPTIMIZATIONL_LEVEL")) {
+
+        if (strnicmp(configName.c_str(), "Release", 7) == 0 ||
+            strnicmp(configName.c_str(), "Profile", 7) == 0)
+        {
+            this->WriteString("<OptimizationLevel>", 3);
+            *this->BuildFileStream << cmVS10EscapeXML(optimizationLevel)
+                << "</OptimizationLevel>\n";
+        }
+    }
   }
 
   //-------------------------------------------------------------------------------------------------------
