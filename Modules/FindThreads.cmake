@@ -145,6 +145,7 @@ else()
            _check_pthreads_flag()
         endif ()
 
+        _check_threads_lib(ScePosix_stub_weak pthread_create CMAKE_HAVE_SCEPOSIX_CREATE)
         _check_threads_lib(pthreads pthread_create CMAKE_HAVE_PTHREADS_CREATE)
         _check_threads_lib(pthread  pthread_create CMAKE_HAVE_PTHREAD_CREATE)
         if(CMAKE_SYSTEM_NAME MATCHES "SunOS")
